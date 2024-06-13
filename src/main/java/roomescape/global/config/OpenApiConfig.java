@@ -16,10 +16,10 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .addSecurityItem(new SecurityRequirement().addList("cookieAuth"))
-                .components(getComponents());
+                .components(attachCookieAuthScheme());
     }
 
-    private Components getComponents() {
+    private Components attachCookieAuthScheme() {
         return new Components().addSecuritySchemes("cookieAuth", new SecurityScheme()
                 .name("cookieAuth")
                 .type(Type.APIKEY)
