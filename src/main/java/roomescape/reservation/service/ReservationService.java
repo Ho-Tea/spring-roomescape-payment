@@ -15,7 +15,6 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import roomescape.reservation.dto.ReservationWaitingDetailResponse;
 import roomescape.admin.dto.AdminReservationRequest;
 import roomescape.exception.RoomescapeException;
 import roomescape.member.domain.LoginMember;
@@ -30,8 +29,10 @@ import roomescape.reservation.domain.Reservations;
 import roomescape.reservation.domain.Waiting;
 import roomescape.reservation.dto.ReservationDetailResponse;
 import roomescape.reservation.dto.ReservationPaymentDetail;
+import roomescape.reservation.dto.ReservationPaymentResponse;
 import roomescape.reservation.dto.ReservationRequest;
 import roomescape.reservation.dto.ReservationResponse;
+import roomescape.reservation.dto.ReservationWaitingDetailResponse;
 import roomescape.reservation.entity.Reservation;
 import roomescape.reservation.repository.ReservationRepository;
 import roomescape.theme.entity.Theme;
@@ -60,7 +61,7 @@ public class ReservationService {
     }
 
     @Transactional
-    public roomescape.reservation.dto.ReservationPaymentResponse saveReservationPayment(
+    public ReservationPaymentResponse saveReservationPayment(
             LoginMember loginMember,
             ReservationRequest reservationRequest,
             PaymentResult paymentResult
@@ -78,7 +79,7 @@ public class ReservationService {
         Reservation savedReservation = reservationRepository.save(reservation);
         paymentRepository.save(new Payment(savedReservation, paymentResult));
 
-        return new roomescape.reservation.dto.ReservationPaymentResponse(
+        return new ReservationPaymentResponse(
                 ReservationResponse.from(reservation),
                 PaymentResponse.from(paymentResult)
         );
