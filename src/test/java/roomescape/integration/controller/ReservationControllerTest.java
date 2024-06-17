@@ -170,7 +170,7 @@ public class ReservationControllerTest {
                     "orderId", "invalidOrderId",
                     "amount", 1000);
 
-            when(paymentClient.payment(any(PaymentRequest.class))).thenReturn(PAYMENT_INFO);
+            when(paymentClient.purchase(any(PaymentRequest.class))).thenReturn(PAYMENT_INFO);
 
             RestAssured.given().log().all()
                     .when()

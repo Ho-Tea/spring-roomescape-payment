@@ -53,7 +53,7 @@ class TossPaymentClientTest {
 
     @DisplayName("적합한 인자를 통한 결제 요청 시 성공한다.")
     @Test
-    void payment() throws JsonProcessingException {
+    void purchase() throws JsonProcessingException {
         String endPoint = "/v1/payments/confirm";
         mockServer
                 .expect(requestTo(url + endPoint))
@@ -61,13 +61,13 @@ class TossPaymentClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess(objectMapper.writeValueAsString(PAYMENT_INFO), MediaType.APPLICATION_JSON));
 
-        assertThat(tossPaymentClient.payment(PAYMENT_REQUEST)).isEqualTo(PAYMENT_INFO);
+        assertThat(tossPaymentClient.purchase(PAYMENT_REQUEST)).isEqualTo(PAYMENT_INFO);
         mockServer.verify();
     }
 
     @DisplayName("적합하지 못한 인자를 통한 결제 요청 시 실패한다.")
     @Test
-    void failPayment() throws IOException {
+    void failPurchase() throws IOException {
         String endPoint = "/v1/payments/confirm";
         String errorMessage = "적합하지 않은 paymentKey입니다.";
         PaymentRequest invalidPaymentRequest = new PaymentRequest("invalid", "invalidOrderId", BigDecimal.valueOf(1000));
@@ -80,7 +80,7 @@ class TossPaymentClientTest {
         when(responseErrorHandler.hasError(any()))
                 .thenThrow(new PaymentException(UserPaymentExceptionResponse.of("INVALID_ERROR_CODE", errorMessage)));
 
-        assertThatThrownBy(() -> tossPaymentClient.payment(invalidPaymentRequest))
+        assertThatThrownBy(() -> tossPaymentClient.purchase(invalidPaymentRequest))
                 .isInstanceOf(PaymentException.class)
                 .hasMessage(errorMessage);
     }

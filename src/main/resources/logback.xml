@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" debug="false">
+
+    <property name="console.format"
+              value="* %-20(%cyan(%date{HH:mm:ss.SSS}) [%thread] [traceId=%X{traceId}]) %highlight(%-5level) %magenta(%marker|%logger{36}): %msg%n%rEx"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${console.format}</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

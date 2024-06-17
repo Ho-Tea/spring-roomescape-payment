@@ -34,7 +34,7 @@ public class ReservationApplicationService {
             LoginMember loginMember,
             ReservationPaymentRequest reservationPaymentRequest
     ) {
-        PaymentResult paymentResult = paymentClient.payment(reservationPaymentRequest.toPaymentRequest());
+        PaymentResult paymentResult = paymentClient.purchase(reservationPaymentRequest.toPaymentRequest());
         return reservationService.saveReservationPayment(loginMember, reservationPaymentRequest.toReservationRequest(), paymentResult);
     }
 

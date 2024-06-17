@@ -95,7 +95,7 @@ class ReservationApplicationServiceTest {
                         new LoginMemberResponse(loginMember.getId(), loginMember.getName())),
                 PAYMENT_RESPONSE);
 
-        Mockito.when(paymentClient.payment(PAYMENT_REQUEST)).thenReturn(PAYMENT_INFO);
+        Mockito.when(paymentClient.purchase(PAYMENT_REQUEST)).thenReturn(PAYMENT_INFO);
 
         assertThat(reservationApplicationService.saveReservationPayment(loginMember, request)).isEqualTo(response);
     }
@@ -112,7 +112,7 @@ class ReservationApplicationServiceTest {
                 invalidPaymentRequest.orderId(),
                 invalidPaymentRequest.amount());
 
-        Mockito.when(paymentClient.payment(invalidPaymentRequest))
+        Mockito.when(paymentClient.purchase(invalidPaymentRequest))
                 .thenThrow(new PaymentException(UserPaymentExceptionResponse.of("INVALID_PAYMENT_KEY", "올바르지 않은 PaymentKey 입니다.")));
 
         assertThatThrownBy(() -> reservationApplicationService.saveReservationPayment(loginMember, request))
