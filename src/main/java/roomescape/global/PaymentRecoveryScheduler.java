@@ -31,7 +31,7 @@ public class PaymentRecoveryScheduler {
         this.paymentRepository = paymentRepository;
     }
 
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 0 3 * * *")
     public void checkPaymentConsistency() {
         log.info("결제 일관성 검사 시작 시각: {}", LocalDateTime.now());
         List<Reservation> pendingReservations = reservationService.findPendingDetailedPayments();
