@@ -1,5 +1,5 @@
 package roomescape.reservation.domain;
 
 public enum ReservationStatus {
-    BOOKED, WAITING
+    BOOKED, WAITING, ADVANCE_BOOKED
 }

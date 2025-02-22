@@ -50,12 +50,12 @@ CREATE TABLE IF NOT EXISTS payment
     id            BIGINT NOT NULL AUTO_INCREMENT,
     reservation_id BIGINT NOT NULL,
     payment_key   VARCHAR(255) NOT NULL,
-    order_name    VARCHAR(255) NOT NULL,
-    requested_at  VARCHAR(255) NOT NULL,
-    approved_at   VARCHAR(255) NOT NULL,
+    order_name    VARCHAR(255),
+    requested_at  VARCHAR(255),
+    approved_at   VARCHAR(255),
     amount        DECIMAL(19, 4) NOT NULL,
-    easy_pay_type VARCHAR(255) NOT NULL,
-    currency_code      VARCHAR(20) NOT NULL,
+    easy_pay_type VARCHAR(255),
+    currency_code      VARCHAR(20),
     created_at      TIMESTAMP   NOT NULL,
     PRIMARY KEY (id)
 );

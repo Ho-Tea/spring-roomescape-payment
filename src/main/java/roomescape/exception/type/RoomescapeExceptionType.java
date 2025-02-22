@@ -33,6 +33,8 @@ public enum RoomescapeExceptionType {
     DELETE_USED_THEME("예약이 존재하는 테마는 삭제할 수 없습니다.",
             "Cannot delete theme with existing reservations. -> themeId = %s"),
 
+    NOT_FOUND_RESERVATION("존재하지 않는 예약입니다.",
+            "Reservation not found. -> reservationId = %s"),
     NOT_FOUND_RESERVATION_TIME("존재하지 않는 시간입니다.",
             "Reservation time not found. -> timeId = %s"),
     NOT_FOUND_RESERVATION_PAYMENT("결제가 존재하지 않는 예약입니다.",

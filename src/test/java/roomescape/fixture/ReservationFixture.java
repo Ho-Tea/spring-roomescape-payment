@@ -43,4 +43,14 @@ public class ReservationFixture {
                 member,
                 status);
     }
+
+    public static final Reservation ReservationOfDateAndStatusWithId(Long id, LocalDate date, ReservationStatus status) {
+        return new Reservation(
+                id,
+                date,
+                ReservationTimeFixture.DEFAULT_RESERVATION_TIME,
+                ThemeFixture.DEFAULT_THEME,
+                MemberFixture.DEFAULT_MEMBER,
+                status);
+    }
 }

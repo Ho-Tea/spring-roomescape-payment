@@ -8,4 +8,6 @@ public interface PaymentClient {
     PaymentResult purchase(PaymentRequest paymentRequest);
 
     PaymentResult cancel(String paymentKey, CancelReason cancelReason);
+
+    PaymentResult lookup(String paymentKey);
 }

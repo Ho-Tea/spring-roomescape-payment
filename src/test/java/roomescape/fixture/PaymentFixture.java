@@ -7,6 +7,8 @@ import roomescape.payment.domain.PaymentResult;
 import roomescape.payment.dto.EasyPayTypeDetail;
 import roomescape.payment.dto.PaymentRequest;
 import roomescape.payment.dto.PaymentResponse;
+import roomescape.payment.entity.Payment;
+import roomescape.reservation.entity.Reservation;
 
 public class PaymentFixture {
     public static final PaymentRequest PAYMENT_REQUEST = new PaymentRequest("paymentKey", "orderId", BigDecimal.valueOf(1000));
@@ -23,4 +25,8 @@ public class PaymentFixture {
             "currency",
             BigDecimal.valueOf(10000, 4));
     public static final PaymentResponse PAYMENT_RESPONSE = PaymentResponse.from(PAYMENT_INFO);
+
+    public static Payment advancePayment(Reservation reservation, PaymentResult paymentResult) {
+        return new Payment(reservation, paymentResult.paymentKey(), paymentResult.totalAmount());
+    }
 }

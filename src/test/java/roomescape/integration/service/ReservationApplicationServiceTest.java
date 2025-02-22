@@ -3,14 +3,16 @@ package roomescape.integration.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.Mockito.when;
 
 import static roomescape.fixture.MemberFixture.DEFAULT_MEMBER;
 import static roomescape.fixture.PaymentFixture.INVALID_PAYMENT_INFO;
 import static roomescape.fixture.PaymentFixture.PAYMENT_INFO;
 import static roomescape.fixture.PaymentFixture.PAYMENT_REQUEST;
-import static roomescape.fixture.PaymentFixture.PAYMENT_RESPONSE;
 import static roomescape.fixture.ReservationTimeFixture.DEFAULT_RESERVATION_TIME;
 import static roomescape.fixture.ThemeFixture.DEFAULT_THEME;
+import static roomescape.reservation.domain.ReservationStatus.ADVANCE_BOOKED;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,7 +20,6 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -27,7 +28,6 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 
 import roomescape.application.service.ReservationApplicationService;
-import roomescape.auth.dto.LoginMemberResponse;
 import roomescape.exception.PaymentException;
 import roomescape.exception.response.UserPaymentExceptionResponse;
 import roomescape.fixture.MemberFixture;
@@ -39,14 +39,11 @@ import roomescape.payment.dto.CancelReason;
 import roomescape.payment.dto.PaymentRequest;
 import roomescape.payment.entity.Payment;
 import roomescape.payment.repository.PaymentRepository;
+import roomescape.reservation.domain.ReservationPaymentResult;
 import roomescape.reservation.dto.ReservationPaymentRequest;
-import roomescape.reservation.dto.ReservationPaymentResponse;
-import roomescape.reservation.dto.ReservationResponse;
 import roomescape.reservation.entity.Reservation;
 import roomescape.reservation.repository.ReservationRepository;
-import roomescape.theme.dto.ThemeResponse;
 import roomescape.theme.repository.ThemeRepository;
-import roomescape.time.dto.ReservationTimeResponse;
 import roomescape.time.repository.ReservationTimeRepository;
 
 @SpringBootTest(webEnvironment = WebEnvironment.NONE)
@@ -86,18 +83,14 @@ class ReservationApplicationServiceTest {
                 PAYMENT_REQUEST.paymentKey(),
                 PAYMENT_REQUEST.orderId(),
                 PAYMENT_REQUEST.amount());
-        ReservationPaymentResponse response = new ReservationPaymentResponse(
-                new ReservationResponse(
-                        1L,
-                        LocalDate.now().plusDays(1),
-                        ReservationTimeResponse.from(DEFAULT_RESERVATION_TIME),
-                        ThemeResponse.from(DEFAULT_THEME),
-                        new LoginMemberResponse(loginMember.getId(), loginMember.getName())),
-                PAYMENT_RESPONSE);
 
-        Mockito.when(paymentClient.purchase(PAYMENT_REQUEST)).thenReturn(PAYMENT_INFO);
+        when(paymentClient.purchase(PAYMENT_REQUEST)).thenReturn(PAYMENT_INFO);
 
-        assertThat(reservationApplicationService.saveReservationPayment(loginMember, request)).isEqualTo(response);
+        ReservationPaymentResult reservationPaymentResult = reservationApplicationService.saveAdvanceReservationPayment(loginMember, request);
+        assertAll(
+                () -> assertThat(reservationPaymentResult.reservation().getStatus()).isEqualTo(ADVANCE_BOOKED),
+                () -> assertThat(reservationPaymentResult.paymentResult().paymentKey()).isEqualTo(PAYMENT_REQUEST.paymentKey())
+        );
     }
 
     @DisplayName("결제에 실패할 경우 예약에 실패한다.")
@@ -112,10 +105,10 @@ class ReservationApplicationServiceTest {
                 invalidPaymentRequest.orderId(),
                 invalidPaymentRequest.amount());
 
-        Mockito.when(paymentClient.purchase(invalidPaymentRequest))
+        when(paymentClient.purchase(invalidPaymentRequest))
                 .thenThrow(new PaymentException(UserPaymentExceptionResponse.of("INVALID_PAYMENT_KEY", "올바르지 않은 PaymentKey 입니다.")));
 
-        assertThatThrownBy(() -> reservationApplicationService.saveReservationPayment(loginMember, request))
+        assertThatThrownBy(() -> reservationApplicationService.saveAdvanceReservationPayment(loginMember, request))
                 .isInstanceOf(PaymentException.class);
     }
 
@@ -126,7 +119,7 @@ class ReservationApplicationServiceTest {
         Reservation savedReservation = reservationRepository.save(reservation);
         paymentRepository.save(new Payment(savedReservation, PAYMENT_INFO));
 
-        Mockito.when(paymentClient.cancel(PAYMENT_REQUEST.paymentKey(), new CancelReason("관리자 권한 취소")))
+        when(paymentClient.cancel(PAYMENT_REQUEST.paymentKey(), new CancelReason("관리자 권한 취소")))
                 .thenReturn(PAYMENT_INFO);
 
         assertThatCode(() -> reservationApplicationService.cancelReservationPayment(savedReservation.getId()))
@@ -140,7 +133,7 @@ class ReservationApplicationServiceTest {
         Reservation savedReservation = reservationRepository.save(reservation);
         paymentRepository.save(new Payment(savedReservation, INVALID_PAYMENT_INFO));
 
-        Mockito.when(paymentClient.cancel(INVALID_PAYMENT_INFO.paymentKey(), new CancelReason("관리자 권한 취소")))
+        when(paymentClient.cancel(INVALID_PAYMENT_INFO.paymentKey(), new CancelReason("관리자 권한 취소")))
                 .thenThrow(new PaymentException(UserPaymentExceptionResponse.of("INVALID_PAYMENT_KEY", "올바르지 않은 PaymentKey 입니다.")));
 
         assertThatThrownBy(() -> reservationApplicationService.cancelReservationPayment(savedReservation.getId()))

@@ -21,6 +21,7 @@ public class TossPaymentClient implements PaymentClient {
     private static final String AUTH_METHOD = "Basic ";
     private static final String APPROVE_PAYMENT_URI = "/v1/payments/confirm";
     private static final String CANCEL_PAYMENT_URI = "/v1/payments/{paymentKey}/cancel";
+    private static final String LOOK_UP_URI = "/v1/payments/{paymentKey}";
     private final String encodedSecretKey;
     private final RestClient restClient;
     private final PaymentClientResponseErrorHandler paymentClientResponseErrorHandler;
@@ -57,6 +58,18 @@ public class TossPaymentClient implements PaymentClient {
                 .uri(CANCEL_PAYMENT_URI, paymentKey)
                 .header(AUTH_HEADER, AUTH_METHOD + encodedSecretKey)
                 .body(cancelReason)
+                .retrieve()
+                .onStatus(paymentClientResponseErrorHandler)
+                .body(PaymentResult.class);
+        return paymentResult;
+    }
+
+    @Override
+    public PaymentResult lookup(String paymentKey) {
+        log.info("traceId: {}, LOOK_UP_URI: {}", MDC.get("traceId"), LOOK_UP_URI);
+        PaymentResult paymentResult = restClient.get()
+                .uri(APPROVE_PAYMENT_URI, paymentKey)
+                .header(AUTH_HEADER, AUTH_METHOD + encodedSecretKey)
                 .retrieve()
                 .onStatus(paymentClientResponseErrorHandler)
                 .body(PaymentResult.class);

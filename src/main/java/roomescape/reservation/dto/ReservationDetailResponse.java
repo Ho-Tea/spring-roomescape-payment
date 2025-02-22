@@ -60,6 +60,7 @@ public record ReservationDetailResponse(
         return switch (status) {
             case BOOKED -> "예약";
             case WAITING -> "%d번째 예약대기";
+            case ADVANCE_BOOKED -> "사전 예약 완료";
         };
     }
 }

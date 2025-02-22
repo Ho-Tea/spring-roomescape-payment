@@ -25,17 +25,13 @@ public class Payment extends BaseEntity {
     private Reservation reservation;
     @Column(unique = true)
     private String paymentKey;
-    @Column(nullable = false)
     private String orderName;
-    @Column(nullable = false)
     private String requestedAt;
-    @Column(nullable = false)
     private String approvedAt;
     @Column(nullable = false)
     private BigDecimal amount;
     @Enumerated(EnumType.STRING)
     private EasyPayType easyPayType;
-    @Column(nullable = false)
     private String currencyCode;
 
     protected Payment() {
@@ -75,6 +71,28 @@ public class Payment extends BaseEntity {
                 EasyPayType.from(paymentResult.easyPay().provider()),
                 paymentResult.currency()
         );
+    }
+
+    public Payment(Reservation reservation, String paymentKey, BigDecimal amount) {
+        this(
+                null,
+                reservation,
+                paymentKey,
+                null,
+                null,
+                null,
+                amount,
+                null,
+                null
+        );
+    }
+
+    public void confirm(PaymentResult paymentResult) {
+        this.orderName = paymentResult.orderName();
+        this.requestedAt = paymentResult.requestedAt();
+        this.approvedAt = paymentResult.approvedAt();
+        this.easyPayType = EasyPayType.from(paymentResult.easyPay().provider());
+        this.currencyCode = paymentResult.currency();
     }
 
     public Long getId() {

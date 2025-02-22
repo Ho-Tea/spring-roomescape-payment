@@ -20,8 +20,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import roomescape.reservation.dto.ReservationWaitingDetailResponse;
 import roomescape.admin.dto.AdminReservationRequest;
+import roomescape.application.facade.ReservationFacade;
 import roomescape.application.service.ReservationApplicationService;
 import roomescape.auth.annotation.Authenticated;
 import roomescape.member.domain.LoginMember;
@@ -30,6 +30,7 @@ import roomescape.reservation.dto.ReservationPaymentRequest;
 import roomescape.reservation.dto.ReservationPaymentResponse;
 import roomescape.reservation.dto.ReservationRequest;
 import roomescape.reservation.dto.ReservationResponse;
+import roomescape.reservation.dto.ReservationWaitingDetailResponse;
 import roomescape.reservation.service.ReservationService;
 
 @Tag(name = "Reservation", description = "Reservation API")
@@ -37,10 +38,12 @@ import roomescape.reservation.service.ReservationService;
 public class ReservationController {
     private final ReservationService reservationService;
     private final ReservationApplicationService reservationApplicationService;
+    private final ReservationFacade reservationFacade;
 
-    public ReservationController(ReservationService reservationService, ReservationApplicationService reservationApplicationService) {
+    public ReservationController(ReservationService reservationService, ReservationApplicationService reservationApplicationService, ReservationFacade reservationFacade) {
         this.reservationService = reservationService;
         this.reservationApplicationService = reservationApplicationService;
+        this.reservationFacade = reservationFacade;
     }
 
     @Operation(summary = "예약 생성", description = "예약을 하나 생성합니다.")
@@ -56,7 +59,7 @@ public class ReservationController {
     public ResponseEntity<ReservationPaymentResponse> saveReservation(@Parameter(hidden = true)
                                                                       @Authenticated LoginMember loginMember,
                                                                       @RequestBody ReservationPaymentRequest request) {
-        ReservationPaymentResponse response = reservationApplicationService.saveReservationPayment(loginMember, request);
+        ReservationPaymentResponse response = reservationFacade.saveReservationPayment(loginMember, request);
         return ResponseEntity.created(URI.create("/reservations/" + response.reservationResponse().id()))
                 .body(response);
     }

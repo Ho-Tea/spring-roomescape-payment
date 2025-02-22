@@ -3,6 +3,8 @@ package roomescape.reservation.service;
 import static roomescape.exception.type.RoomescapeExceptionType.DUPLICATE_RESERVATION;
 import static roomescape.exception.type.RoomescapeExceptionType.DUPLICATE_WAITING_RESERVATION;
 import static roomescape.exception.type.RoomescapeExceptionType.NOT_FOUND_MEMBER_BY_ID;
+import static roomescape.exception.type.RoomescapeExceptionType.NOT_FOUND_RESERVATION;
+import static roomescape.exception.type.RoomescapeExceptionType.NOT_FOUND_RESERVATION_PAYMENT;
 import static roomescape.exception.type.RoomescapeExceptionType.NOT_FOUND_RESERVATION_TIME;
 import static roomescape.exception.type.RoomescapeExceptionType.NOT_FOUND_THEME;
 import static roomescape.exception.type.RoomescapeExceptionType.PAST_TIME_RESERVATION;
@@ -21,6 +23,7 @@ import roomescape.member.domain.LoginMember;
 import roomescape.member.entity.Member;
 import roomescape.member.repository.MemberRepository;
 import roomescape.payment.domain.PaymentResult;
+import roomescape.payment.dto.PaymentRequest;
 import roomescape.payment.dto.PaymentResponse;
 import roomescape.payment.entity.Payment;
 import roomescape.payment.repository.PaymentRepository;
@@ -61,12 +64,12 @@ public class ReservationService {
     }
 
     @Transactional
-    public ReservationPaymentResponse saveReservationPayment(
+    public Reservation saveAdvanceReservationPayment(
             LoginMember loginMember,
             ReservationRequest reservationRequest,
-            PaymentResult paymentResult
+            PaymentRequest paymentRequest
     ) {
-        Reservation reservation = getReservation(loginMember.getId(), reservationRequest, ReservationStatus.BOOKED);
+        Reservation reservation = getReservation(loginMember.getId(), reservationRequest, ReservationStatus.ADVANCE_BOOKED);
 
         Reservations reservations = new Reservations(reservationRepository.findAll());
         if (reservations.hasSameReservation(reservation)) {
@@ -76,18 +79,31 @@ public class ReservationService {
                     reservationRequest.themeId(),
                     reservationRequest.timeId());
         }
-        Reservation savedReservation = reservationRepository.save(reservation);
-        paymentRepository.save(new Payment(savedReservation, paymentResult));
+        reservationRepository.save(reservation);
+        paymentRepository.save(new Payment(reservation, paymentRequest.paymentKey(), paymentRequest.amount()));
+        return reservation;
+    }
 
+
+    @Transactional
+    public ReservationPaymentResponse confirmReservationPayment(
+            Reservation reservation,
+            PaymentResult paymentResult
+    ) {
+        Reservation foundedReservation = reservationRepository.findById(reservation.getId())
+                .orElseThrow(() -> new RoomescapeException(NOT_FOUND_RESERVATION, reservation.getId()));
+        foundedReservation.confirm();
+        Payment payment = paymentRepository.findByReservationId(foundedReservation.getId())
+                .orElseThrow(() -> new RoomescapeException(NOT_FOUND_RESERVATION_PAYMENT, reservation.getId()));
+        payment.confirm(paymentResult);
         return new ReservationPaymentResponse(
-                ReservationResponse.from(reservation),
+                ReservationResponse.from(foundedReservation),
                 PaymentResponse.from(paymentResult)
         );
     }
 
     @Transactional
     public ReservationResponse saveWaiting(LoginMember loginMember, ReservationRequest reservationRequest) {
-
         Reservation reservation = getReservation(loginMember.getId(), reservationRequest, ReservationStatus.WAITING);
         Reservations reservations = new Reservations(reservationRepository.findAllByMemberId(loginMember.getId()));
         if (reservations.hasSameReservation(reservation)) {
@@ -213,5 +229,9 @@ public class ReservationService {
     @Transactional
     public void deleteByMemberIdAndId(LoginMember loginMember, long id) {
         reservationRepository.deleteByMemberIdAndId(loginMember.getId(), id);
+    }
+
+    public List<Reservation> findPendingDetailedPayments() {
+        return reservationRepository.findAllByStatus(ReservationStatus.ADVANCE_BOOKED);
     }
 }

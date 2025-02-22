@@ -11,6 +11,7 @@ import static roomescape.exception.type.RoomescapeExceptionType.NOT_FOUND_RESERV
 import static roomescape.exception.type.RoomescapeExceptionType.NOT_FOUND_THEME;
 import static roomescape.exception.type.RoomescapeExceptionType.PAST_TIME_RESERVATION;
 import static roomescape.fixture.PaymentFixture.PAYMENT_INFO;
+import static roomescape.fixture.PaymentFixture.PAYMENT_REQUEST;
 import static roomescape.fixture.PaymentFixture.PAYMENT_RESPONSE;
 import static roomescape.fixture.ReservationFixture.ReservationOfDate;
 import static roomescape.fixture.ReservationFixture.ReservationOfDateAndMemberAndStatus;
@@ -31,10 +32,11 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 
-import roomescape.reservation.dto.ReservationWaitingDetailResponse;
 import roomescape.auth.domain.Role;
 import roomescape.exception.RoomescapeException;
 import roomescape.fixture.MemberFixture;
+import roomescape.fixture.PaymentFixture;
+import roomescape.fixture.ReservationFixture;
 import roomescape.member.domain.LoginMember;
 import roomescape.member.entity.Member;
 import roomescape.member.repository.MemberRepository;
@@ -48,6 +50,7 @@ import roomescape.reservation.dto.ReservationDetailResponse;
 import roomescape.reservation.dto.ReservationPaymentDetail;
 import roomescape.reservation.dto.ReservationRequest;
 import roomescape.reservation.dto.ReservationResponse;
+import roomescape.reservation.dto.ReservationWaitingDetailResponse;
 import roomescape.reservation.entity.Reservation;
 import roomescape.reservation.repository.ReservationRepository;
 import roomescape.reservation.service.ReservationService;
@@ -80,66 +83,85 @@ class ReservationServiceTest {
         memberRepository.save(member);
     }
 
-    @DisplayName("지나지 않은 시간에 대한 예약을 생성할 수 있다.")
+    @DisplayName("지나지 않은 시간에 대한 사전 예약을 생성할 수 있다.")
     @Test
-    void createFutureReservationTest() {
+    void createFutureAdvanceReservationTest() {
         //when
-        ReservationResponse saved = reservationService.saveReservationPayment(
-                        loginMember,
-                        new ReservationRequest(
-                                LocalDate.now().plusDays(1),
-                                DEFAULT_THEME.getId(),
-                                DEFAULT_RESERVATION_TIME.getId()
-                        ), PAYMENT_INFO)
-                .reservationResponse();
+        Reservation reservation = reservationService.saveAdvanceReservationPayment(
+                loginMember,
+                new ReservationRequest(
+                        LocalDate.now().plusDays(1),
+                        DEFAULT_THEME.getId(),
+                        DEFAULT_RESERVATION_TIME.getId()
+                ), PAYMENT_REQUEST);
 
         //then
         assertAll(
                 () -> assertThat(new Reservations(reservationRepository.findAll()).getReservations())
                         .hasSize(1),
-                () -> assertThat(paymentRepository.findByReservationId(saved.id()).get()).isNotNull(),
-                () -> assertThat(saved.id()).isEqualTo(1L)
+                () -> assertThat(paymentRepository.findByReservationId(reservation.getId()).get()).isNotNull(),
+                () -> assertThat(reservation.getId()).isEqualTo(1L)
         );
     }
 
-    @DisplayName("지난 시간에 대해 예약을 시도할 경우 예외가 발생한다.")
+    @DisplayName("지나지 않은 시간에 대한 사전 예약을 확정할 수 있다.")
     @Test
-    void createPastReservationFailTest() {
-        assertThatThrownBy(() -> reservationService.saveReservationPayment(
+    void createConfirmFutureReservationTest() {
+        //given
+        Reservation reservation = ReservationFixture.ReservationOfDateAndStatus(LocalDate.now()
+                .plusDays(1), ReservationStatus.ADVANCE_BOOKED);
+        Payment payment = PaymentFixture.advancePayment(reservation, PAYMENT_INFO);
+
+        reservationRepository.save(reservation);
+        paymentRepository.save(payment);
+
+        //when
+        ReservationResponse saved = reservationService.confirmReservationPayment(reservation, PAYMENT_INFO)
+                .reservationResponse();
+        Reservation confirmedReservation = reservationRepository.findById(saved.id()).get();
+
+        //then
+        assertThat(confirmedReservation.getStatus()).isEqualTo(ReservationStatus.BOOKED);
+    }
+
+    @DisplayName("지난 시간에 대해 사전 예약을 시도할 경우 예외가 발생한다.")
+    @Test
+    void createPastAdvanceReservationFailTest() {
+        assertThatThrownBy(() -> reservationService.saveAdvanceReservationPayment(
                 loginMember,
                 new ReservationRequest(
                         LocalDate.now().minusDays(1),
                         DEFAULT_THEME.getId(),
                         DEFAULT_RESERVATION_TIME.getId()),
-                PAYMENT_INFO))
+                PAYMENT_REQUEST))
                 .isInstanceOf(RoomescapeException.class)
                 .hasMessage(PAST_TIME_RESERVATION.getMessage());
     }
 
-    @DisplayName("존재하지 않는 시간에 대해 예약을 생성하면 예외가 발생한다.")
+    @DisplayName("존재하지 않는 시간에 대해 사전 예약을 생성하면 예외가 발생한다.")
     @Test
-    void createReservationWithTimeNotExistsTest() {
-        assertThatThrownBy(() -> reservationService.saveReservationPayment(
+    void createAdvanceReservationWithTimeNotExistsTest() {
+        assertThatThrownBy(() -> reservationService.saveAdvanceReservationPayment(
                 loginMember,
                 new ReservationRequest(
                         LocalDate.now().minusDays(1),
                         2L,
                         DEFAULT_THEME.getId()),
-                PAYMENT_INFO))
+                PAYMENT_REQUEST))
                 .isInstanceOf(RoomescapeException.class)
                 .hasMessage(NOT_FOUND_RESERVATION_TIME.getMessage());
     }
 
-    @DisplayName("존재하지 않는 테마에 대해 예약을 생성하면 예외가 발생한다.")
+    @DisplayName("존재하지 않는 테마에 대해 사전 예약을 생성하면 예외가 발생한다.")
     @Test
-    void createReservationWithThemeNotExistsTest() {
-        assertThatThrownBy(() -> reservationService.saveReservationPayment(
+    void createAdvanceReservationWithThemeNotExistsTest() {
+        assertThatThrownBy(() -> reservationService.saveAdvanceReservationPayment(
                 loginMember,
                 new ReservationRequest(
                         LocalDate.now().plusDays(1),
                         DEFAULT_RESERVATION_TIME.getId(),
                         2L),
-                PAYMENT_INFO))
+                PAYMENT_REQUEST))
                 .isInstanceOf(RoomescapeException.class)
                 .hasMessage(NOT_FOUND_THEME.getMessage());
     }
@@ -292,16 +314,16 @@ class ReservationServiceTest {
             defaultReservation = reservationRepository.save(defaultReservation);
         }
 
-        @DisplayName("이미 예약된 시간, 테마의 예약을 또 생성할 수 없다.")
+        @DisplayName("이미 사전 예약된 시간, 테마의 예약을 또 생성할 수 없다.")
         @Test
-        void duplicatedReservationFailTest() {
-            assertThatThrownBy(() -> reservationService.saveReservationPayment(
+        void duplicatedAdvanceReservationFailTest() {
+            assertThatThrownBy(() -> reservationService.saveAdvanceReservationPayment(
                     loginMember,
                     new ReservationRequest(
                             defaultDate,
                             DEFAULT_RESERVATION_TIME.getId(),
                             DEFAULT_THEME.getId()),
-                    PAYMENT_INFO))
+                    PAYMENT_REQUEST))
                     .isInstanceOf(RoomescapeException.class)
                     .hasMessage(DUPLICATE_RESERVATION.getMessage());
         }
