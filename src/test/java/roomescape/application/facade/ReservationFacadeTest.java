@@ -17,6 +17,9 @@ import static roomescape.fixture.ThemeFixture.DEFAULT_THEME;
 import static roomescape.reservation.domain.ReservationStatus.ADVANCE_BOOKED;
 
 import java.time.LocalDate;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -121,5 +124,37 @@ class ReservationFacadeTest {
                 () -> assertThat(paymentRepository.findById(1L).get()
                         .getPaymentKey()).isEqualTo(PAYMENT_REQUEST.paymentKey())
         );
+    }
+
+    @DisplayName("예약 요청이 동시에 100개가 들어왔을 때 특정 시간과 테마에 대한 예약이 단 하나 생성되어야 한다.")
+    @Test
+    public void concurrency() throws InterruptedException {
+        // given
+        ReservationPaymentRequest request = new ReservationPaymentRequest(
+                LocalDate.now().plusDays(1),
+                DEFAULT_THEME.getId(),
+                DEFAULT_RESERVATION_TIME.getId(),
+                PAYMENT_REQUEST.paymentKey(),
+                PAYMENT_REQUEST.orderId(),
+                PAYMENT_REQUEST.amount());
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(32);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        // when
+        when(paymentClient.purchase(request.toPaymentRequest())).thenReturn(PAYMENT_INFO);
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    reservationFacade.saveReservationPayment(loginMember, request);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+
+        // then
+        assertThat(reservationRepository.findAll().size()).isEqualTo(1);
     }
 }
