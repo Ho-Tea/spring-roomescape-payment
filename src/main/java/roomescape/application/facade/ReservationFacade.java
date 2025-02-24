@@ -1,5 +1,8 @@
 package roomescape.application.facade;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 import org.springframework.stereotype.Service;
 
 import roomescape.application.service.ReservationApplicationService;
@@ -14,6 +17,7 @@ import roomescape.reservation.dto.ReservationResponse;
 public class ReservationFacade {
 
     private final ReservationApplicationService reservationApplicationService;
+    private final Lock lock = new ReentrantLock(true);
 
     public ReservationFacade(ReservationApplicationService reservationApplicationService) {
         this.reservationApplicationService = reservationApplicationService;
@@ -23,13 +27,20 @@ public class ReservationFacade {
             LoginMember loginMember,
             ReservationPaymentRequest reservationPaymentRequest
     ) {
-        ReservationPaymentResult reservationPaymentResult = reservationApplicationService.saveAdvanceReservationPayment(loginMember, reservationPaymentRequest);
+        lock.lock();
         try {
-            return reservationApplicationService.saveDetailedReservationPayment(reservationPaymentResult.reservation(), reservationPaymentResult.paymentResult());
-        } catch (Exception e) {
-            return new ReservationPaymentResponse(
-                    ReservationResponse.from(reservationPaymentResult.reservation()),
-                    PaymentResponse.from(reservationPaymentResult.paymentResult()));
+            ReservationPaymentResult reservationPaymentResult = reservationApplicationService.saveAdvanceReservationPayment(loginMember, reservationPaymentRequest);
+            try {
+                return reservationApplicationService.saveDetailedReservationPayment(
+                        reservationPaymentResult.reservation(),
+                        reservationPaymentResult.paymentResult());
+            } catch (Exception e) {
+                return new ReservationPaymentResponse(
+                        ReservationResponse.from(reservationPaymentResult.reservation()),
+                        PaymentResponse.from(reservationPaymentResult.paymentResult()));
+            }
+        } finally {
+            lock.unlock();
         }
     }
 }

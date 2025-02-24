@@ -71,7 +71,7 @@ public class ReservationService {
     ) {
         Reservation reservation = getReservation(loginMember.getId(), reservationRequest, ReservationStatus.ADVANCE_BOOKED);
 
-        Reservations reservations = new Reservations(reservationRepository.findAllWithPessimisticLock());
+        Reservations reservations = new Reservations(reservationRepository.findAll());
         if (reservations.hasSameReservation(reservation)) {
             throw new RoomescapeException(
                     DUPLICATE_RESERVATION,
