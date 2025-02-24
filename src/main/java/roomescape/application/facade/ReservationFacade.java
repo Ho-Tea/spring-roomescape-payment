@@ -19,7 +19,7 @@ public class ReservationFacade {
         this.reservationApplicationService = reservationApplicationService;
     }
 
-    public synchronized ReservationPaymentResponse saveReservationPayment(
+    public ReservationPaymentResponse saveReservationPayment(
             LoginMember loginMember,
             ReservationPaymentRequest reservationPaymentRequest
     ) {
