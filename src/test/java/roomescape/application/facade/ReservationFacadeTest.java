@@ -1,9 +1,12 @@
 package roomescape.application.facade;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static roomescape.fixture.MemberFixture.DEFAULT_MEMBER;
@@ -26,6 +29,8 @@ import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 
+import roomescape.exception.PaymentException;
+import roomescape.exception.response.UserPaymentExceptionResponse;
 import roomescape.fixture.MemberFixture;
 import roomescape.member.domain.LoginMember;
 import roomescape.member.repository.MemberRepository;
@@ -68,9 +73,32 @@ class ReservationFacadeTest {
         memberRepository.save(DEFAULT_MEMBER);
     }
 
+    @DisplayName("사전 정보 저장 트랜잭션이 실패할 경우 세부 정보 저장 로직이 실행되지 않는다.")
+    @Test
+    public void separateTransactionsBetweenAdvanceAndDetail() {
+        // given
+        ReservationPaymentRequest request = new ReservationPaymentRequest(
+                LocalDate.now().plusDays(1),
+                DEFAULT_THEME.getId(),
+                DEFAULT_RESERVATION_TIME.getId(),
+                PAYMENT_REQUEST.paymentKey(),
+                PAYMENT_REQUEST.orderId(),
+                PAYMENT_REQUEST.amount());
+
+        // when
+        when(paymentClient.purchase(request.toPaymentRequest()))
+                .thenThrow(new PaymentException(UserPaymentExceptionResponse.of("INVALID_ERROR_CODE", "예외 발생")));
+
+        // then
+        assertAll(
+                () -> assertThatThrownBy(() -> reservationFacade.saveReservationPayment(loginMember, request)).isInstanceOf(PaymentException.class),
+                () -> verify(reservationService, never()).confirmReservationPayment(any(Reservation.class), any(PaymentResult.class))
+        );
+    }
+
     @DisplayName("세부 정보 저장 트랜잭션이 롤백되어도 사전 정보 저장 트랜잭션은 정상 커밋 된다. -> saveAdvanceReservationPayment 과 saveDetailedPayment 이 서로 다른 트랜잭션에서 시작하는 것을 검증")
     @Test
-    public void SeparateTransactionsBetweenAdvanceAndDetail() {
+    public void separateTransactionsBetweenAdvanceAndDetail2() {
         // given
         ReservationPaymentRequest request = new ReservationPaymentRequest(
                 LocalDate.now().plusDays(1),
@@ -90,7 +118,8 @@ class ReservationFacadeTest {
                 () -> assertThat(reservationRepository.findAll().size()).isEqualTo(1),
                 () -> assertThat(reservationRepository.findById(1L).get().getStatus()).isEqualTo(ADVANCE_BOOKED),
                 () -> assertThat(paymentRepository.findAll().size()).isEqualTo(1),
-                () -> assertThat(paymentRepository.findById(1L).get().getPaymentKey()).isEqualTo(PAYMENT_REQUEST.paymentKey())
+                () -> assertThat(paymentRepository.findById(1L).get()
+                        .getPaymentKey()).isEqualTo(PAYMENT_REQUEST.paymentKey())
         );
     }
 }

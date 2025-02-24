@@ -1,7 +1,6 @@
 package roomescape.application.facade;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import roomescape.application.service.ReservationApplicationService;
 import roomescape.member.domain.LoginMember;
@@ -20,7 +19,6 @@ public class ReservationFacade {
         this.reservationApplicationService = reservationApplicationService;
     }
 
-    @Transactional
     public ReservationPaymentResponse saveReservationPayment(
             LoginMember loginMember,
             ReservationPaymentRequest reservationPaymentRequest
