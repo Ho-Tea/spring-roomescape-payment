@@ -4,7 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -49,4 +52,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("createdAt") LocalDateTime localDateTime);
 
     List<Reservation> findAllByStatus(ReservationStatus status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Reservation r")
+    List<Reservation> findAllWithPessimisticLock();
 }
