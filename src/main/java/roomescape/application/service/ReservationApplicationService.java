@@ -36,14 +36,14 @@ public class ReservationApplicationService {
         this.paymentRepository = paymentRepository;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 12)
     public ReservationPaymentResult saveAdvanceReservationPayment(LoginMember loginMember, ReservationPaymentRequest reservationPaymentRequest) {
         Reservation reservation = reservationService.saveAdvanceReservationPayment(loginMember, reservationPaymentRequest.toReservationRequest(), reservationPaymentRequest.toPaymentRequest());
         PaymentResult paymentResult = paymentClient.purchase(reservationPaymentRequest.toPaymentRequest());
         return new ReservationPaymentResult(reservation, paymentResult);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 3)
     public ReservationPaymentResponse saveDetailedReservationPayment(
             Reservation reservation,
             PaymentResult paymentResult
