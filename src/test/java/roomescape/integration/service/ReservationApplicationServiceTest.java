@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 import static roomescape.fixture.MemberFixture.DEFAULT_MEMBER;
@@ -24,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 
@@ -31,7 +33,10 @@ import roomescape.application.service.ReservationApplicationService;
 import roomescape.exception.PaymentException;
 import roomescape.exception.response.UserPaymentExceptionResponse;
 import roomescape.fixture.MemberFixture;
+import roomescape.fixture.PaymentFixture;
 import roomescape.fixture.ReservationFixture;
+import roomescape.fixture.ReservationTimeFixture;
+import roomescape.fixture.ThemeFixture;
 import roomescape.member.domain.LoginMember;
 import roomescape.member.repository.MemberRepository;
 import roomescape.payment.api.PaymentClient;
@@ -43,6 +48,7 @@ import roomescape.reservation.domain.ReservationPaymentResult;
 import roomescape.reservation.dto.ReservationPaymentRequest;
 import roomescape.reservation.entity.Reservation;
 import roomescape.reservation.repository.ReservationRepository;
+import roomescape.reservation.service.ReservationService;
 import roomescape.theme.repository.ThemeRepository;
 import roomescape.time.repository.ReservationTimeRepository;
 
@@ -54,6 +60,8 @@ class ReservationApplicationServiceTest {
     private PaymentClient paymentClient;
     @Autowired
     private ReservationApplicationService reservationApplicationService;
+    @SpyBean
+    private ReservationService reservationService;
     @Autowired
     private ThemeRepository themeRepository;
     @Autowired
@@ -138,5 +146,31 @@ class ReservationApplicationServiceTest {
 
         assertThatThrownBy(() -> reservationApplicationService.cancelReservationPayment(savedReservation.getId()))
                 .isInstanceOf(PaymentException.class);
+    }
+
+    @DisplayName("사전 예약 정보 저장 시 트랜잭션 timeout 시간을 초과할 경우 예외가 발생한다.")
+    @Test
+    void transactionTimeOut() {
+        // given
+        ReservationPaymentRequest request = new ReservationPaymentRequest(
+                LocalDate.now().plusDays(1),
+                ThemeFixture.DEFAULT_THEME.getId(),
+                ReservationTimeFixture.DEFAULT_RESERVATION_TIME.getId(),
+                PaymentFixture.PAYMENT_REQUEST.paymentKey(),
+                PaymentFixture.PAYMENT_REQUEST.orderId(),
+                PaymentFixture.PAYMENT_REQUEST.amount()
+        );
+
+        // when
+        doAnswer(invocation -> {
+            Thread.sleep(7000L); // 7초 지연 → 타임아웃 발생 예상
+            return invocation.callRealMethod();
+        }).when(reservationService)
+                .saveAdvanceReservationPayment(loginMember, request.toReservationRequest(), request.toPaymentRequest());
+
+        // then
+        assertThatThrownBy(() -> reservationApplicationService.saveAdvanceReservationPayment(loginMember, request))
+                .isInstanceOf(org.springframework.orm.jpa.JpaSystemException.class)
+                .hasMessage("transaction timeout expired");
     }
 }

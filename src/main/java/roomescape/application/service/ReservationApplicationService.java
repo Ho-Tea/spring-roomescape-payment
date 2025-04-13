@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.extern.slf4j.Slf4j;
 import roomescape.exception.RoomescapeException;
 import roomescape.exception.type.RoomescapeExceptionType;
 import roomescape.member.domain.LoginMember;
@@ -19,7 +18,6 @@ import roomescape.reservation.dto.ReservationPaymentResponse;
 import roomescape.reservation.entity.Reservation;
 import roomescape.reservation.service.ReservationService;
 
-@Slf4j
 @Service
 public class ReservationApplicationService {
     private final PaymentClient paymentClient;
@@ -36,14 +34,14 @@ public class ReservationApplicationService {
         this.paymentRepository = paymentRepository;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 12)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 6)
     public ReservationPaymentResult saveAdvanceReservationPayment(LoginMember loginMember, ReservationPaymentRequest reservationPaymentRequest) {
         Reservation reservation = reservationService.saveAdvanceReservationPayment(loginMember, reservationPaymentRequest.toReservationRequest(), reservationPaymentRequest.toPaymentRequest());
         PaymentResult paymentResult = paymentClient.purchase(reservationPaymentRequest.toPaymentRequest());
         return new ReservationPaymentResult(reservation, paymentResult);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 3)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 1)
     public ReservationPaymentResponse saveDetailedReservationPayment(
             Reservation reservation,
             PaymentResult paymentResult

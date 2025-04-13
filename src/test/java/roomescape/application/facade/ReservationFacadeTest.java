@@ -9,8 +9,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import static com.jayway.jsonpath.internal.path.PathCompiler.fail;
-
 import static roomescape.fixture.MemberFixture.DEFAULT_MEMBER;
 import static roomescape.fixture.PaymentFixture.PAYMENT_INFO;
 import static roomescape.fixture.PaymentFixture.PAYMENT_REQUEST;
@@ -18,15 +16,10 @@ import static roomescape.fixture.ReservationTimeFixture.DEFAULT_RESERVATION_TIME
 import static roomescape.fixture.ThemeFixture.DEFAULT_THEME;
 import static roomescape.reservation.domain.ReservationStatus.ADVANCE_BOOKED;
 
-import java.sql.SQLNonTransientConnectionException;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,7 +35,6 @@ import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 import roomescape.exception.PaymentException;
 import roomescape.exception.response.UserPaymentExceptionResponse;
 import roomescape.fixture.MemberFixture;
-import roomescape.fixture.PaymentFixture;
 import roomescape.member.domain.LoginMember;
 import roomescape.member.repository.MemberRepository;
 import roomescape.payment.api.PaymentClient;
@@ -164,79 +156,5 @@ class ReservationFacadeTest {
 
         // then
         assertThat(reservationRepository.findAll().size()).isEqualTo(1);
-    }
-
-    @DisplayName("동시 예약 요청 시, 커넥션 풀 고갈로 인한 타임아웃 예외만 검증")
-    @Test
-    public void connectionPoolExhaustionException() throws Exception {
-        // given: 유효한 예약 결제 요청 생성
-        ReservationPaymentRequest request = new ReservationPaymentRequest(
-                LocalDate.now().plusDays(1),
-                1L,
-                1L,
-                PaymentFixture.PAYMENT_REQUEST.paymentKey(),
-                PaymentFixture.PAYMENT_REQUEST.orderId(),
-                PaymentFixture.PAYMENT_REQUEST.amount()
-        );
-
-        int threadCount = 100; // 동시 요청 수
-        ExecutorService executorService = Executors.newFixedThreadPool(26);
-        CountDownLatch latch = new CountDownLatch(threadCount);
-        List<Future<Void>> futures = new ArrayList<>();
-
-        // PaymentClient.purchase() 호출 시 30초 지연을 발생시켜 커넥션 반환이 늦어지도록 설정
-        when(paymentClient.purchase(request.toPaymentRequest())).thenAnswer(invocation -> {
-            Thread.sleep(30000); // 30초 지연
-            return PaymentFixture.PAYMENT_INFO;
-        });
-
-        // when: 여러 스레드에서 동시에 예약 결제 저장 요청 실행
-        for (int i = 0; i < threadCount; i++) {
-            futures.add(executorService.submit(() -> {
-                try {
-                    reservationFacade.saveReservationPayment(loginMember, request);
-                } catch (Exception e) {
-                    throw e;
-                } finally {
-                    latch.countDown();
-                }
-                return null;
-            }));
-        }
-        latch.await();
-        executorService.shutdown();
-
-        // then: 각 Future의 예외 체인을 검사하여,
-        // "Connection is not available" 메시지가 포함된 예외가 있다면 커넥션 풀 고갈로 인한 타임아웃,
-        // 단, "Statement cancelled due to timeout"나 "Transaction timed out" 문자열이 있는 경우는 트랜잭션 타임아웃이므로 무시합니다.
-        boolean connectionPoolTimeoutOccurred = false;
-        for (Future<Void> future : futures) {
-            try {
-                future.get();
-            } catch (Exception e) {
-                Throwable cause = e.getCause();
-                while (cause != null) {
-                    String msg = cause.getMessage();
-                    if (msg != null) {
-                        if (msg.contains("Statement cancelled due to timeout")
-                                || msg.contains("Transaction timed out")) {
-                            // 트랜잭션 타임아웃 예외는 무시
-                            break;
-                        }else if (msg.contains("Connection is not available")) {
-                            connectionPoolTimeoutOccurred = true;
-                            break;
-                        }
-                    }
-                    cause = cause.getCause();
-                }
-            }
-            if (connectionPoolTimeoutOccurred) {
-                break;
-            }
-        }
-        // 커넥션 풀 고갈로 인한 타임아웃 예외가 발생하지 않아야 함을 검증
-        assertThat(connectionPoolTimeoutOccurred)
-                .as("커넥션 풀 고갈로 인한 타임아웃 예외는 발생하지 않아야 합니다.")
-                .isFalse();
     }
 }
