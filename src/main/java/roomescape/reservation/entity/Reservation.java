@@ -19,7 +19,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 
 import roomescape.exception.RoomescapeException;
 import roomescape.global.entity.BaseEntity;
@@ -32,11 +31,11 @@ import roomescape.time.entity.ReservationTime;
 
 @Entity
 @Table(
-        name = "reservation",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_reservation_date_time_theme",
-                columnNames = {"date", "time_id", "theme_id"}
-        )
+        name = "reservation"
+//        uniqueConstraints = @UniqueConstraint(
+//                name = "uk_reservation_date_time_theme",
+//                columnNames = {"date", "time_id", "theme_id"}
+//        )
 )
 public class Reservation extends BaseEntity implements Comparable<Reservation> {
     @Id
