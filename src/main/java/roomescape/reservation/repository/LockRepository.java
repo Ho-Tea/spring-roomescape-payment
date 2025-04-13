@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
 import lombok.extern.slf4j.Slf4j;
+import roomescape.exception.PaymentException;
+import roomescape.exception.RoomescapeException;
 
 @Slf4j
 @Repository
@@ -42,6 +44,8 @@ public class LockRepository {
                 releaseLock(connection, key);
                 log.info("Success releaseLock={}, connection={}", key, connection);
             }
+        } catch (RoomescapeException | PaymentException exception) {
+            throw exception;
         } catch (SQLException | RuntimeException e) {
             throw new RuntimeException(EXCEPTION_MESSAGE, e);
         }
